@@ -1,0 +1,38 @@
+node {
+    
+def mavenHome = tool name: 'maven3.9.6'
+
+properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), [$class: 'JobLocalConfiguration', changeReasonComment: ''], pipelineTriggers([pollSCM('* * * * *')])])
+
+echo "build Number is: ${env.BUILD_NUMBER}"
+echo "Job name is: ${env.JOB_NAME}"
+echo "Node name is: ${env.NODE_NAME}"  
+echo "Jenkins Home dir is: ${env.JENKINS_HOME}"
+echo "Build url ${env.BUILD_URL}"
+echo "Jenkins url is: ${env.JENKINS_URL}"
+
+
+stage('CheckoutCode'){
+git branch: 'development', credentialsId: '14109cc3-1271-4b9e-af11-4bfe9c8f33b0', url: 'https://github.com/Mithum-mss-Bankingprojects-2023/maven-web-application.git'
+}
+
+stage('Build'){
+sh "${mavenHome}/bin/mvn clean package"
+}
+
+stage('ExecuteSonarQubeReport'){
+sh "${mavenHome}/bin/mvn clean sonar:sonar"
+}
+
+stage('UploadArtifacts'){
+sh "${mavenHome}/bin/mvn clean deploy"
+}
+
+stage('DeployAppIntoTomcat'){
+sshagent(['931a9e66-bb9d-4bf8-8971-e0e88cf2d7a6']) {
+    sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war  ec2-user@172.31.142.192:/opt/apache-tomcat-9.0.85/webapps/"
+}
+}
+
+
+}
